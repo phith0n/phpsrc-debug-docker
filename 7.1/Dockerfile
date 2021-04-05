@@ -59,14 +59,22 @@ RUN set -eux \
     && rm -rf php.tar.gz
 
 RUN set -eux; \
-    cd /usr/src/php; \
+    mkdir /usr/src/freetype; \
+    wget -qO- http://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz | tar zx -C /usr/src/freetype --strip-components=1; \
+    cd /usr/src/freetype; \
+    ./configure --prefix=/usr/local; \
+    make; \
+    make install
+
+RUN set -eux; \
     gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
     debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
 # https://bugs.php.net/bug.php?id=74125
     if [ ! -d /usr/include/curl ]; then \
         ln -sT "/usr/include/$debMultiarch/curl" /usr/local/include/curl; \
     fi; \
-    ./buildconf; \
+    \
+    cd /usr/src/php; \
     ./configure \
         --build="$gnuArch" \
         --with-config-file-path="$PHP_INI_DIR" \
@@ -91,8 +99,8 @@ RUN set -eux; \
         \
 # As of PHP 7.4.0, --with-gd becomes --enable-gd
         --with-gd \
-        --with-freetype \
-        --with-jpeg \
+        --with-freetype-dir=/usr/local \
+        --with-jpeg-dir=/usr \
         --with-password-argon2 \
 # https://wiki.php.net/rfc/libsodium
         --with-sodium=shared \
@@ -128,7 +136,7 @@ RUN set -eux; \
     \
 # update pecl channel definitions https://github.com/docker-library/php/issues/443
     pecl update-channels; \
-    rm -rf /tmp/pear ~/.pearrc; \
+    rm -rf /tmp/pear ~/.pearrc /usr/src/freetype; \
     \
 # smoke test
     php --version
